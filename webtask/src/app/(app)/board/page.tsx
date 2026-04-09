@@ -7,6 +7,7 @@ export default async function BoardPage() {
       include: {
         assignee: true,
         tags: { include: { tag: true } },
+        attachments: { orderBy: { createdAt: "desc" }, take: 5 },
       },
       orderBy: { updatedAt: "desc" },
     }),
@@ -15,6 +16,10 @@ export default async function BoardPage() {
   ]);
 
   const normalizedTasks = tasks.map((t) => ({
+    cover: (() => {
+      const a = t.attachments.find((x) => x.mimeType.startsWith("image/") || x.mimeType.startsWith("video/"));
+      return a ? { url: a.url, mimeType: a.mimeType } : null;
+    })(),
     id: t.id,
     title: t.title,
     description: t.description,

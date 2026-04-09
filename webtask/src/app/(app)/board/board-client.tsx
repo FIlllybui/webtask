@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 
 import { KanbanBoard } from "@/components/board/kanban-board";
 import { TaskDialog } from "@/components/board/task-dialog";
+import { AdvancedTaskPanel } from "@/components/tasks/advanced-task-panel";
 import type { ApiTag, ApiTask, ApiUser } from "@/lib/api-types";
 
 export function BoardClient({
@@ -18,6 +19,7 @@ export function BoardClient({
   const [tasks, setTasks] = useState<ApiTask[]>(initialTasks);
   const [open, setOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [openAdvanced, setOpenAdvanced] = useState(false);
 
   const selected = useMemo(() => tasks.find((t) => t.id === selectedId) ?? null, [tasks, selectedId]);
 
@@ -33,7 +35,7 @@ export function BoardClient({
         }}
         onEdit={(t) => {
           setSelectedId(t.id);
-          setOpen(true);
+          setOpenAdvanced(true);
         }}
       />
 
@@ -50,6 +52,14 @@ export function BoardClient({
           });
         }}
         onDeleted={(id) => setTasks((prev) => prev.filter((t) => t.id !== id))}
+      />
+
+      <AdvancedTaskPanel
+        open={openAdvanced}
+        onOpenChange={setOpenAdvanced}
+        task={selected}
+        users={users}
+        tags={tags}
       />
     </>
   );

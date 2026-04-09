@@ -34,6 +34,17 @@ model User {
 
   tasks Task[] @relation("TaskAssignee")
   meetingAttendances MeetingAttendee[]
+
+  taskComments TaskComment[]
+}
+
+model TaskList {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tasks Task[]
 }
 
 model Task {
@@ -44,10 +55,17 @@ model Task {
   priority    TaskPriority @default(MID)
   dueAt       DateTime?
 
+  listId String?
+  list   TaskList? @relation(fields: [listId], references: [id], onDelete: SetNull)
+
   assigneeId String?
   assignee   User? @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
 
   tags TaskTag[]
+  subtasks    TaskSubtask[]
+  comments    TaskComment[]
+  attachments TaskAttachment[]
+  activities  TaskActivity[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -56,6 +74,80 @@ model Task {
   @@index([priority])
   @@index([assigneeId])
   @@index([dueAt])
+  @@index([listId])
+}
+
+model TaskSubtask {
+  id        String   @id @default(cuid())
+  taskId    String
+  title     String
+  checked   Boolean  @default(false)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId, order])
+}
+
+model TaskComment {
+  id        String   @id @default(cuid())
+  taskId    String
+  authorId  String
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  task   Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([taskId, createdAt])
+  @@index([authorId])
+}
+
+model TaskAttachment {
+  id        String   @id @default(cuid())
+  taskId    String
+  name      String
+  url       String   // file path or remote URL (simulated/local for now)
+  mimeType  String   @default("")
+  sizeBytes Int      @default(0)
+  isCover   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId, createdAt])
+  @@index([taskId, isCover])
+}
+
+enum TaskActivityType {
+  CREATED
+  UPDATED
+  STATUS_CHANGED
+  PRIORITY_CHANGED
+  DUE_DATE_CHANGED
+  ASSIGNEE_CHANGED
+  LIST_CHANGED
+  TAGS_CHANGED
+  SUBTASKS_CHANGED
+  COMMENTED
+  ATTACHMENT_ADDED
+  ATTACHMENT_REMOVED
+}
+
+model TaskActivity {
+  id        String           @id @default(cuid())
+  taskId    String
+  type      TaskActivityType
+  message   String           @default("")
+  dataJson  String           @default("{}")
+  createdAt DateTime         @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId, createdAt])
 }
 
 model Tag {

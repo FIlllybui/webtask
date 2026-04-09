@@ -10,6 +10,7 @@ export type ApiTask = {
   status: TaskStatus;
   priority: TaskPriority;
   dueAt?: string | null;
+  cover?: { url: string; mimeType: string } | null;
   assignee: ApiUser | null;
   tags: ApiTag[];
   createdAt: string | Date;
