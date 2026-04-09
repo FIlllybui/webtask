@@ -35,7 +35,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid payload", details: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { title, description, status, priority, dueAt, assigneeId, tagIds } = parsed.data;
+  const { title, description, status, priority, dueAt, listId, assigneeId, tagIds } = parsed.data;
 
   const created = await prisma.task.create({
     data: {
@@ -44,6 +44,7 @@ export async function POST(req: Request) {
       status,
       priority,
       dueAt: dueAt ? new Date(dueAt) : null,
+      listId: listId ?? null,
       assigneeId: assigneeId ?? null,
       tags: {
         create: (tagIds ?? []).map((tagId) => ({ tagId })),

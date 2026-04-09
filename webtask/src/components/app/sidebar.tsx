@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 
 import { SidebarNav } from "@/components/app/sidebar-nav";
+import { ProjectsNav } from "@/components/app/projects-nav";
 import { WorkspaceSwitcher } from "@/components/app/workspace-switcher";
 import { Separator } from "@/components/ui/separator";
 
@@ -21,6 +22,9 @@ export function Sidebar() {
 
       <div className="flex-1 overflow-auto p-3">
         <SidebarNav pathname={pathname} />
+        <div className="mt-5">
+          <ProjectsNav />
+        </div>
       </div>
 
       <div className="px-3">

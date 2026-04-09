@@ -9,6 +9,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   const task = await prisma.task.findUnique({
     where: { id },
     include: {
+      project: true,
       list: true,
       assignee: true,
       tags: { include: { tag: true } },
@@ -28,6 +29,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
       status: task.status,
       priority: task.priority,
       dueAt: task.dueAt ? task.dueAt.toISOString() : null,
+      project: task.project ? { id: task.project.id, name: task.project.name, colorHex: task.project.colorHex } : null,
       list: task.list ? { id: task.list.id, name: task.list.name } : null,
       assignee: task.assignee ? { id: task.assignee.id, name: task.assignee.name, handle: task.assignee.handle } : null,
       tags: task.tags.map((tt) => ({ id: tt.tag.id, name: tt.tag.name })),
@@ -49,6 +51,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
         url: a.url,
         mimeType: a.mimeType,
         sizeBytes: a.sizeBytes,
+        isCover: a.isCover,
         createdAt: a.createdAt.toISOString(),
       })),
       activities: task.activities.map((a) => ({
@@ -72,7 +75,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ error: "Invalid payload", details: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { title, description, status, priority, dueAt, assigneeId, tagIds } = parsed.data;
+  const { title, description, status, priority, dueAt, listId, assigneeId, tagIds } = parsed.data;
 
   const before = await prisma.task.findUnique({
     where: { id },
@@ -88,6 +91,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       ...(status !== undefined ? { status } : {}),
       ...(priority !== undefined ? { priority } : {}),
       ...(dueAt !== undefined ? { dueAt: dueAt ? new Date(dueAt) : null } : {}),
+      ...(listId !== undefined ? { listId: listId ?? null } : {}),
       ...(assigneeId !== undefined ? { assigneeId: assigneeId ?? null } : {}),
       ...(tagIds !== undefined
         ? {
@@ -148,6 +152,20 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
           type: "ASSIGNEE_CHANGED",
           message: `Assignee changed`,
           data: { before: beforeAssignee, after: afterAssignee },
+        }),
+      );
+    }
+  }
+  if (listId !== undefined) {
+    const beforeList = before.listId ?? null;
+    const afterList = updated.listId ?? null;
+    if (beforeList !== afterList) {
+      activityPromises.push(
+        logTaskActivity({
+          taskId: id,
+          type: "LIST_CHANGED",
+          message: "List changed",
+          data: { before: beforeList, after: afterList },
         }),
       );
     }

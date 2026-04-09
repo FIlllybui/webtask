@@ -1,8 +1,12 @@
+"use client";
+
 import Link from "next/link";
+import { useMemo } from "react";
 
 import { Badge } from "@/components/ui/badge";
+import { useProjectStore } from "@/lib/project-store";
 import { cn } from "@/lib/utils";
-import { CalendarDays, Columns3, LayoutDashboard, ListChecks } from "lucide-react";
+import { BarChart3, CalendarDays, Columns3, GanttChartSquare, LayoutDashboard, ListChecks } from "lucide-react";
 
 export type SidebarNavItem = {
   href: string;
@@ -17,6 +21,8 @@ const items: SidebarNavItem[] = [
   { href: "/board", label: "Board", icon: <Columns3 className="h-4 w-4" />, group: "Views" },
   { href: "/calendar", label: "Calendar", icon: <CalendarDays className="h-4 w-4" />, group: "Views" },
   { href: "/tasks", label: "Tasks", icon: <ListChecks className="h-4 w-4" />, group: "Views" },
+  { href: "/reporting", label: "Reporting", icon: <BarChart3 className="h-4 w-4" />, group: "Views" },
+  { href: "/timeline", label: "Timeline", icon: <GanttChartSquare className="h-4 w-4" />, group: "Views" },
 ];
 
 export function SidebarNav({
@@ -26,6 +32,12 @@ export function SidebarNav({
   pathname: string;
   onNavigate?: () => void;
 }) {
+  const projectId = useProjectStore((s) => s.projectId);
+  const projectQuery = useMemo(
+    () => (projectId ? `?project=${encodeURIComponent(projectId)}` : ""),
+    [projectId],
+  );
+
   const groups = Array.from(new Set(items.map((i) => i.group ?? "Navigation")));
   return (
     <nav className="space-y-5">
@@ -38,10 +50,14 @@ export function SidebarNav({
             .filter((i) => (i.group ?? "Navigation") === group)
             .map((item) => {
               const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+              const href =
+                item.href === "/board" || item.href === "/calendar" || item.href === "/tasks"
+                  ? `${item.href}${projectQuery}`
+                  : item.href;
               return (
                 <Link
                   key={item.href}
-                  href={item.href}
+                  href={href}
                   onClick={onNavigate}
                   className={cn(
                     "group relative inline-flex w-full items-center justify-start gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",

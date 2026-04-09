@@ -12,6 +12,7 @@ export const TaskUpsertSchema = z.object({
   status: TaskStatusSchema.optional().default("BACKLOG"),
   priority: TaskPrioritySchema.optional().default("MID"),
   dueAt: z.string().datetime().nullable().optional(),
+  listId: z.string().nullable().optional(),
   assigneeId: z.string().nullable().optional(),
   tagIds: z.array(z.string()).optional().default([]),
 });

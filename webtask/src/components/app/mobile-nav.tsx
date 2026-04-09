@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 
 import { SidebarNav } from "@/components/app/sidebar-nav";
+import { ProjectsNav } from "@/components/app/projects-nav";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Menu } from "lucide-react";
 
@@ -25,6 +26,9 @@ export function MobileNav() {
         </SheetHeader>
         <div className="px-3 pb-4">
           <SidebarNav pathname={pathname} onNavigate={() => setOpen(false)} />
+          <div className="mt-5">
+            <ProjectsNav onNavigate={() => setOpen(false)} />
+          </div>
         </div>
       </SheetContent>
     </Sheet>

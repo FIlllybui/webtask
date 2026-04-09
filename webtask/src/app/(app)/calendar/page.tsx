@@ -2,9 +2,18 @@ import { prisma } from "@/lib/db";
 
 import { CalendarClient } from "./calendar-client";
 
-export default async function CalendarPage() {
+export default async function CalendarPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ project?: string }>;
+}) {
+  const sp = (await searchParams) ?? {};
+  const project = sp.project ?? null;
+  const projectFilter = project ? { projectId: project } : {};
+
   const [tasks, meetings, users, tags] = await Promise.all([
     prisma.task.findMany({
+      where: projectFilter,
       include: {
         assignee: true,
         tags: { include: { tag: true } },

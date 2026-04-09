@@ -1,9 +1,18 @@
 import { BoardClient } from "@/app/(app)/board/board-client";
 import { prisma } from "@/lib/db";
 
-export default async function BoardPage() {
+export default async function BoardPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ project?: string }>;
+}) {
+  const sp = (await searchParams) ?? {};
+  const project = sp.project ?? null;
+  const projectFilter = project ? { projectId: project } : {};
+
   const [tasks, users, tags] = await Promise.all([
     prisma.task.findMany({
+      where: projectFilter,
       include: {
         assignee: true,
         tags: { include: { tag: true } },
@@ -17,7 +26,10 @@ export default async function BoardPage() {
 
   const normalizedTasks = tasks.map((t) => ({
     cover: (() => {
-      const a = t.attachments.find((x) => x.mimeType.startsWith("image/") || x.mimeType.startsWith("video/"));
+      const cover = t.attachments.find((x) => x.isCover);
+      const a =
+        cover ??
+        t.attachments.find((x) => x.mimeType.startsWith("image/") || x.mimeType.startsWith("video/"));
       return a ? { url: a.url, mimeType: a.mimeType } : null;
     })(),
     id: t.id,

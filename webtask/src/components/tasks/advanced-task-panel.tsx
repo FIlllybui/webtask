@@ -18,8 +18,17 @@ import { Calendar, CheckSquare, FileText, History, MessageSquareText, Play, Plus
 
 type Subtask = { id: string; title: string; checked: boolean; order: number };
 type Comment = { id: string; body: string; createdAt: string; author: { id: string; handle: string; name?: string } };
-type Attachment = { id: string; name: string; url: string; createdAt: string; mimeType?: string; sizeBytes?: number };
+type Attachment = {
+  id: string;
+  name: string;
+  url: string;
+  createdAt: string;
+  mimeType?: string;
+  sizeBytes?: number;
+  isCover?: boolean;
+};
 type Activity = { id: string; type: string; message: string; createdAt: string };
+type TaskList = { id: string; name: string };
 
 const statusLabel: Record<TaskStatus, string> = {
   BACKLOG: "Backlog",
@@ -56,6 +65,9 @@ export function AdvancedTaskPanel({
   const [assigneeId, setAssigneeId] = useState<string | "none">("none");
   const [dueAtLocal, setDueAtLocal] = useState<string>("");
   const [description, setDescription] = useState("");
+  const [listId, setListId] = useState<string | "none">("none");
+  const [lists, setLists] = useState<TaskList[]>([]);
+  const [newListName, setNewListName] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -90,6 +102,7 @@ export function AdvancedTaskPanel({
         setAssigneeId(t.assignee?.id ?? "none");
         setDescription(t.description ?? "");
         setDueAtLocal(t.dueAt ? new Date(t.dueAt).toISOString().slice(0, 16) : "");
+        setListId(t.list?.id ?? "none");
 
         setSubtasks((t.subtasks ?? []) as Subtask[]);
         setComments((t.comments ?? []) as Comment[]);
@@ -102,6 +115,18 @@ export function AdvancedTaskPanel({
             createdAt: a.createdAt,
           })),
         );
+
+        // load lists for this task's project
+        const projectId = t.project?.id as string | undefined;
+        if (projectId) {
+          const lr = await fetch(`/api/task-lists?projectId=${encodeURIComponent(projectId)}`, { cache: "no-store" });
+          if (lr.ok) {
+            const lj = (await lr.json()) as { lists: TaskList[] };
+            setLists(lj.lists);
+          }
+        } else {
+          setLists([]);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -120,6 +145,7 @@ export function AdvancedTaskPanel({
       priority,
       assigneeId: assigneeId === "none" ? null : assigneeId,
       dueAt: dueAtLocal ? new Date(dueAtLocal).toISOString() : null,
+      listId: listId === "none" ? null : listId,
       description,
     };
     const res = await fetch(`/api/tasks/${task.id}`, {
@@ -142,6 +168,28 @@ export function AdvancedTaskPanel({
         );
       }
     }
+  }
+
+  async function createList() {
+    const name = newListName.trim();
+    if (!name || !task) return;
+    // need project id from task GET response; easiest is re-fetch once
+    const res = await fetch(`/api/tasks/${task.id}`, { cache: "no-store" });
+    if (!res.ok) return;
+    const json = (await res.json()) as any;
+    const projectId = json.task.project?.id as string | undefined;
+    if (!projectId) return;
+
+    const cr = await fetch("/api/task-lists", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ projectId, name }),
+    });
+    if (!cr.ok) return;
+    const cj = (await cr.json()) as { list: TaskList };
+    setLists((prev) => [...prev, cj.list].sort((a, b) => a.name.localeCompare(b.name)));
+    setListId(cj.list.id);
+    setNewListName("");
   }
 
   async function addSubtask() {
@@ -292,6 +340,14 @@ export function AdvancedTaskPanel({
     }
   }
 
+  async function setCover(a: Attachment) {
+    if (!task) return;
+    const res = await fetch(`/api/tasks/${task.id}/attachments/${a.id}/cover`, { method: "POST" });
+    if (res.ok) {
+      setAttachments((prev) => prev.map((x) => ({ ...x, isCover: x.id === a.id })));
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -316,7 +372,32 @@ export function AdvancedTaskPanel({
             <div className="space-y-5">
               <div className="grid gap-2">
                 <Label>Group / List</Label>
-                <Input placeholder="(next) e.g. Core" disabled />
+                <Select value={listId} onValueChange={(v) => setListId(v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a list" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No list</SelectItem>
+                    {lists.map((l) => (
+                      <SelectItem key={l.id} value={l.id}>
+                        {l.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="flex gap-2">
+                  <Input
+                    value={newListName}
+                    onChange={(e) => setNewListName(e.target.value)}
+                    placeholder="Create new list…"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") createList();
+                    }}
+                  />
+                  <Button variant="secondary" onClick={createList} disabled={!newListName.trim()}>
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
 
               <div className="grid gap-2">
@@ -532,7 +613,14 @@ export function AdvancedTaskPanel({
                     <div key={a.id} className="rounded-xl border bg-card p-3">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <div className="truncate text-sm font-medium">{a.name}</div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <div className="truncate text-sm font-medium">{a.name}</div>
+                            {a.isCover ? (
+                              <Badge variant="secondary" className="h-5 px-2 text-[11px]">
+                                Cover
+                              </Badge>
+                            ) : null}
+                          </div>
                           <div className="mt-1 truncate text-xs text-muted-foreground">{a.url}</div>
                         </div>
                         <Button variant="ghost" size="icon" onClick={() => removeAttachment(a)}>
@@ -558,6 +646,12 @@ export function AdvancedTaskPanel({
                           )}
                         </div>
                       ) : null}
+
+                      <div className="mt-3 flex items-center gap-2">
+                        <Button variant="outline" size="sm" onClick={() => setCover(a)} disabled={!!a.isCover}>
+                          Set as cover
+                        </Button>
+                      </div>
                     </div>
                   ))}
                   {attachments.length === 0 ? (
